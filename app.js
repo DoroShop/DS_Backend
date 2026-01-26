@@ -10,7 +10,6 @@ const rateLimiter = require("./utils/rateLimiter");
 const { errorHandler } = require("./utils/errorHandler");
 const helmet = require("helmet");
 
-
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -26,7 +25,7 @@ app.use(
       },
     },
     crossOriginEmbedderPolicy: false,
-  })
+  }),
 );
 
 app.use(express.json({ limit: "50mb" }));
@@ -37,18 +36,22 @@ app.use(
   cors({
     origin: [
       "https://darylbacongco.me",
-      "http://127.0.0.1:5500",
-      "http://localhost:3000",
-      "http://localhost:3001", 
-      "http://localhost:3002",
-      "http://localhost:5173",
-      "http://192.168.1.7:3002",
-      "http://localhost:4173", 
-    ], 
+      "https://doroshop.ph",
+      "https://www.doroshop.ph",
+      "http://doroshop.ph",
+      "http://www.doroshop.ph",
+      "http://165.22.109.100",
+      "http://165.22.109.100:3000",
+      // "http://localhost:3000",
+      // "http://localhost:3001",
+      // "http://localhost:3002",
+      // "http://localhost:5173",
+      // "http://192.168.1.7:3002",
+      // "http://localhost:4173",
+    ],
     credentials: true, // VERY IMPORTANT — allows cookies
-  })
+  }),
 );
-
 
 app.use(cookieParser());
 app.use(passport.initialize());
