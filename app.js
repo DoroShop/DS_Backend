@@ -44,7 +44,7 @@ app.use(
       "http://165.22.109.100:3000",
       // "http://localhost:3000",
       // "http://localhost:3001",
-      // "http://localhost:3002",
+      "http://localhost:3002",
       // "http://localhost:5173",
       // "http://192.168.1.7:3002",
       // "http://localhost:4173",
