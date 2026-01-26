@@ -14,6 +14,10 @@ services:
       - NODE_ENV=production
       - MONGO_URI=mongodb+srv://doroshop01:doroshop@cluster0.p6vosmo.mongodb.net/doros?retryWrites=true&w=majority&appName=Cluster0
       - REDIS_URL=redis://redis:6379
+      - SMTP_HOST=smtp.sendgrid.net
+      - SMTP_PORT=587
+      - SMTP_USER=apikey
+      - SMTP_PASS=YOUR_SENDGRID_API_KEY_HERE
     restart: unless-stopped
 
   # mongo:

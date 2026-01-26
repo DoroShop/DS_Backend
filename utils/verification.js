@@ -14,7 +14,10 @@ const transporter = nodemailer.createTransport({
     },
     tls: {
         rejectUnauthorized: process.env.NODE_ENV === 'production', // strict in production
-    }
+    },
+    connectionTimeout: 60000, // 60 seconds
+    greetingTimeout: 30000, // 30 seconds
+    socketTimeout: 60000, // 60 seconds
 });
 
 // Verify mailer configuration and connectivity
