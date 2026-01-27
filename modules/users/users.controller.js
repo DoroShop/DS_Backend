@@ -38,12 +38,11 @@ exports.login = async (req, res) => {
     // }
 
     res.cookie("token", result.token, {
-    	httpOnly: true,
-				secure: true,
-				sameSite: "none",
-				domain: ".doroshop.ph",
-				path: "/",
-				maxAge: 7 * 24 * 60 * 60 * 1000,
+      httpOnly: true,
+      secure: isProd, // true on HTTPS
+      sameSite: "lax", // best for same-origin /v1
+      path: "/",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     return res.json(result);
@@ -225,7 +224,7 @@ exports.logout = async (req, res) => {
     res.clearCookie("token", {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      sameSite: "none",
     });
 
     return res.json({
