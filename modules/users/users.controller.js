@@ -28,6 +28,23 @@ exports.register = async (req, res) => {
   }
 };
 const isProd = process.env.NODE_ENV === "production";
+
+function cookieOptions({ maxAge } = {}) {
+  const opts = {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: isProd ? "none" : "lax",
+    path: "/",
+  };
+
+  if (isProd) {
+    opts.domain = ".doroshop.ph";
+  }
+
+  if (maxAge) opts.maxAge = maxAge;
+  return opts;
+}
+
 exports.login = async (req, res) => {
   try {
     const result = await userService.loginUser(req.body);
@@ -37,13 +54,7 @@ exports.login = async (req, res) => {
     // 	return res.status(401).json({message: "user not found!"});
     // }
 
-    res.cookie("token", result.token, {
-      httpOnly: true,
-      secure: isProd, // true on HTTPS
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      path: "/",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+res.cookie("token", result.token, cookieOptions({ maxAge: 7 * 24 * 60 * 60 * 1000 }));
 
     return res.json(result);
   } catch (err) {
@@ -99,22 +110,10 @@ exports.handleSocialLogin = (req, res) => {
       address: req.user.address,
       phone: req.user.phone,
     }),
-    {
-      httpOnly: true,
-      secure: isProd, // true on HTTPS
-      sameSite: "none", // best for same-origin /v1
-      path: "/",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    },
+    cookieOptions({ maxAge: 7 * 24 * 60 * 60 * 1000 }),
   );
 
-  res.cookie("token", token, {
-    httpOnly: true,
-    secure: isProd, // true on HTTPS
-    sameSite: "none", // best for same-origin /v1
-    path: "/",
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-  });
+  res.cookie("token", token, cookieOptions({ maxAge: 7 * 24 * 60 * 60 * 1000 }));
 
   return res.redirect(
     process.env.CLIENT_SUCCESS_URL || "https://darylbacongco.me/products",
@@ -220,12 +219,10 @@ exports.logout = async (req, res) => {
     // Call logout service
     const result = await userService.logoutUser(token, userId);
 
-    // Clear HTTP-only cookie
-    res.clearCookie("token", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-    });
+    // Clear HTTP-only cookie(s) using same options used to set them
+    const clearOpts = cookieOptions();
+    res.clearCookie("token", clearOpts);
+    res.clearCookie("user", clearOpts);
 
     return res.json({
       success: true,
@@ -245,11 +242,7 @@ exports.logoutCookie = async (req, res) => {
 
     if (!token) {
       // Even if no token, clear cookie and return success
-      res.clearCookie("token", {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-      });
+      res.clearCookie("token", cookieOptions());
 
       return res.json({
         success: true,
@@ -273,12 +266,7 @@ exports.logoutCookie = async (req, res) => {
       await userService.logoutUser(token, userId);
     }
 
-    // Clear HTTP-only cookie
-    res.clearCookie("token", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-    });
+    res.clearCookie("token", cookieOptions());
 
     return res.json({
       success: true,
@@ -288,11 +276,7 @@ exports.logoutCookie = async (req, res) => {
     console.error("Cookie logout controller error:", error);
 
     // Always clear cookie even if error occurs
-    res.clearCookie("token", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-    });
+    res.clearCookie("token", cookieOptions());
 
     return res.status(500).json({
       error: "Logout completed with errors",
