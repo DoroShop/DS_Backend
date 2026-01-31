@@ -317,7 +317,7 @@ class PaymentService {
         type: "checkout",
         provider: "paymongo",
         amount: sanitizedAmount,
-        fee: Math.round(sanitizedAmount * 0.025),
+        fee: sanitizedAmount,
         netAmount: sanitizedAmount - Math.round(sanitizedAmount * 0.025),
         currency: "PHP",
         description: sanitizedDescription,
@@ -419,13 +419,13 @@ class PaymentService {
       }
 
       const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
-
+      
       const payment = new Payment({
         userId,
         type: 'subscription',
         provider: 'paymongo',
         amount: sanitizedAmount,
-        fee: Math.round(sanitizedAmount * 0.025),
+        fee: sanitizedAmount,
         netAmount: sanitizedAmount - Math.round(sanitizedAmount * 0.025),
         currency: 'PHP',
         description: sanitizedDescription,

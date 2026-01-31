@@ -114,6 +114,8 @@ exports.createSubscriptionPayment = asyncHandler(async (req, res) => {
   const { amount } = req.body;
   const userId = req.user.id;
 
+  console.log("😁Creating subscription payment for planCodesadddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd:", planCode, "amount:", amount);  
+
   if (!planCode) throw new ValidationError('subscription.planCode is required');
   if (!amount || amount <= 0) throw new ValidationError('amount (in centavos) is required');
 
