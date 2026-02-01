@@ -116,7 +116,7 @@ exports.handleSocialLogin = (req, res) => {
   res.cookie("token", token, cookieOptions({ maxAge: 7 * 24 * 60 * 60 * 1000 }));
 
   return res.redirect(
-    process.env.CLIENT_SUCCESS_URL || "https://darylbacongco.me/products",
+    process.env.CLIENT_SUCCESS_URL || "https://doroshop.ph/products",
   );
 };
 
