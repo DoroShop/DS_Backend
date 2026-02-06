@@ -267,6 +267,16 @@ const uploadProfileImage = multer({
   },
 });
 
+// Banner upload multer configuration
+const uploadBanner = multer({
+  storage: memoryStorage,
+  limits: { files: 1, fileSize: 5 * 1024 * 1024 }, // 5MB max for banners
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith("image/")) cb(null, true);
+    else cb(new Error("Only image files are allowed for banners"), false);
+  },
+});
+
 // Extended makeUploadHandler to support profile uploads
 function makeProfileUploadHandler() {
   return async function (req, res, next) {
@@ -408,16 +418,84 @@ function getDocumentViewUrl(url) {
   return url;
 }
 
+// Banner upload handler with 16:9 aspect ratio and multiple sizes
+const bannerUploadHandler = async (req, res, next) => {
+  try {
+    if (!req.file || !req.file.buffer) {
+      return next();
+    }
+
+    const timestamp = Date.now();
+    const basePublicId = `banner_${timestamp}`;
+
+    // Main banner image (1920x1080) - 16:9 aspect ratio
+    const mainOptions = {
+      folder: "DoroShop-Images/banners",
+      format: "webp",
+      transformation: [
+        {
+          width: 1920,
+          height: 1080,
+          crop: "fill", // Crop to exact 16:9 ratio
+          gravity: "center",
+          quality: "auto:good"
+        }
+      ],
+      tags: ["banner", "permanent"],
+      context: `temp=false|type=banner|created=${timestamp}`,
+      public_id: basePublicId
+    };
+
+    // Upload main image
+    const mainResult = await uploadBufferToCloudinary(req.file.buffer, mainOptions);
+
+    // Small size (1280x720) - for smaller screens
+    const smallOptions = {
+      folder: "DoroShop-Images/banners",
+      format: "webp", 
+      transformation: [
+        {
+          width: 1280,
+          height: 720,
+          crop: "fill",
+          gravity: "center", 
+          quality: "auto:good"
+        }
+      ],
+      tags: ["banner", "permanent", "small"],
+      context: `temp=false|type=banner|size=small|created=${timestamp}`,
+      public_id: `${basePublicId}_small`
+    };
+
+    // Upload small size
+    const smallResult = await uploadBufferToCloudinary(req.file.buffer, smallOptions);
+
+    // Attach results to req.file for use in controller
+    req.file.secure_url = mainResult.secure_url;
+    req.file.public_id = mainResult.public_id;
+    req.file.small_url = smallResult.secure_url;
+    req.file.small_public_id = smallResult.public_id;
+    req.file.large_url = mainResult.secure_url; // Same as main for now
+
+    next();
+  } catch (error) {
+    console.error('[Banner Upload Error]', error);
+    next(error);
+  }
+};
+
 module.exports = {
   uploadTemp,
   uploadPermanent,
   uploadDocuments,
   uploadProfileImage,
+  uploadBanner,
   tempUploadHandler,
   permanentUploadHandler,
   documentUploadHandler,
   profileUploadHandler,
   makeProfileUploadHandler,
+  bannerUploadHandler,
   deleteFromCloudinary,
   deleteBatchFromCloudinary,
   safeDeleteBatch,

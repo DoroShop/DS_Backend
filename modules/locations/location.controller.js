@@ -43,17 +43,47 @@ const localRegions = new Map(localLocations.regions.map((r) => [r.code, r]));
 
 const fallbackRegions = () => localLocations.regions.map(({ code, name }) => ({ code, name }));
 
-const fallbackBarangaysByCity = (cityCode) => {
+/**
+ * Fallback: Get provinces of a region from local data
+ * Data structure: Region → provinces → cities → barangays
+ */
+const fallbackProvincesByRegion = (regionCode) => {
+  const region = localRegions.get(regionCode);
+  if (!region?.provinces?.length) {
+    console.log(`[locations] No fallback provinces found for region ${regionCode}`);
+    return [];
+  }
+  return region.provinces.map(({ code, name }) => ({ code, name }));
+};
+
+/**
+ * Fallback: Get cities/municipalities of a province from local data
+ * Data structure: Region → provinces → cities → barangays
+ */
+const fallbackCitiesByProvince = (provinceCode) => {
   for (const region of localLocations.regions) {
-    const municipality = region.municipalities?.find((m) => m.code === cityCode);
-    if (municipality?.barangays?.length) {
-      return municipality.barangays.map(({ name, zipCode }) => ({
-        code: `${cityCode}-${name}`,
+    const province = region.provinces?.find((p) => p.code === provinceCode);
+    if (province?.cities?.length) {
+      return province.cities.map(({ code, name, zipCode }) => ({
+        code,
         name,
-        zipCode,
+        zipCode: zipCode || null,
       }));
     }
   }
+  console.log(`[locations] No fallback cities found for province ${provinceCode}`);
+  return [];
+};
+
+/**
+ * Fallback: Get barangays of a city from local data
+ * NOTE: Minimal/empty fallback - prioritize real PSGC API data
+ * Data structure: Region → provinces → cities → barangays
+ */
+const fallbackBarangaysByCity = (cityCode) => {
+  console.log(`[locations] Fallback barangays for ${cityCode} - returning empty (use API data)`);
+  // Return empty array to force system to use API data
+  // Only use local data if absolutely necessary
   return [];
 };
 
@@ -100,6 +130,12 @@ const listProvinces = async (req, res) => {
     res.json({ success: true, data: mapped });
   } catch (error) {
     console.error('[locations] provinces error:', error.message);
+    // Try local fallback data
+    const fallback = fallbackProvincesByRegion(regionCode);
+    if (fallback.length > 0) {
+      console.log(`[locations] Using fallback: ${fallback.length} provinces for region ${regionCode}`);
+      return res.json({ success: true, data: fallback, fallback: true });
+    }
     const err = new ValidationError('Unable to load provinces');
     err.status = 502;
     res.status(err.status).json(formatErrorResponse(err));
@@ -131,6 +167,12 @@ const listCities = async (req, res) => {
     res.json({ success: true, data: mapped });
   } catch (error) {
     console.error('[locations] cities error:', error.message);
+    // Try local fallback data
+    const fallback = fallbackCitiesByProvince(provinceCode);
+    if (fallback.length > 0) {
+      console.log(`[locations] Using fallback: ${fallback.length} cities for province ${provinceCode}`);
+      return res.json({ success: true, data: fallback, fallback: true });
+    }
     const err = new ValidationError('Unable to load cities/municipalities');
     err.status = 502;
     res.status(err.status).json(formatErrorResponse(err));
@@ -157,9 +199,11 @@ const listBarangays = async (req, res) => {
     console.log(`[locations] Fetched ${mapped.length} barangays for city ${cityCode}`);
     res.json({ success: true, data: mapped });
   } catch (error) {
-    console.error('[locations] barangays error:', error.message);
+    console.error('[locations] barangays API error:', error.message);
+    // Try local fallback data
     const fallback = fallbackBarangaysByCity(cityCode);
-    if (fallback.length) {
+    if (fallback.length > 0) {
+      console.log(`[locations] Using fallback: ${fallback.length} barangays for city ${cityCode}`);
       return res.json({ success: true, data: fallback, fallback: true });
     }
     const err = new ValidationError('Unable to load barangays');

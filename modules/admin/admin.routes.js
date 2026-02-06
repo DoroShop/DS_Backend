@@ -8,6 +8,9 @@ const { subscriptionController } = require("../subscription/subscription.control
 router.get("/", adminController.getDashboard);
 router.put("/", adminController.updateDashboard);
 
+// Product Banner Management
+router.use("/product-banners", require("./routes/productBanner.routes"));
+
 // Subscription management for admins
 router.get("/subscriptions", subscriptionController.getAllSubscriptions);
 router.get("/subscriptions/:id", subscriptionController.getSubscriptionById);

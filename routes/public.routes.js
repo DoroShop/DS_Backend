@@ -8,7 +8,7 @@ const productMetaService = require('../modules/products/productMeta.service');
 const { Plan } = require('../modules/subscription/models/Plan.js');
 
 // Public endpoint to get active banners for homepage
-router.get('/public/banners', async (req, res) => {
+router.get('/banners', async (req, res) => {
   try {
     const { placement = 'hero' } = req.query;
     const now = new Date();

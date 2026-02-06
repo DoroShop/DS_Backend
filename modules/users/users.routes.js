@@ -5,7 +5,12 @@ const passport = require("passport");
 const router = express.Router();
 const userController = require("./users.controller");
 const { protect } = require("../../auth/auth.controller.js");
-const { requestRegistrationOtp } = require("../../utils/otp.controller.js");
+const { 
+  requestRegistrationOtp, 
+  requestForgotPasswordOtp, 
+  verifyForgotPasswordOtp, 
+  resetPassword 
+} = require("../../utils/otp.controller.js");
 
 // register & login
 router.post("/register", userController.register);
@@ -13,6 +18,11 @@ router.post("/login", userController.login);
 router.post("/logout", protect, userController.logout);
 router.post("/logout-cookie", userController.logoutCookie); // For cookie-based logout
 router.post("/request-otp", requestRegistrationOtp);
+
+// NEW: Forgot password routes
+router.post("/forgot-password", requestForgotPasswordOtp);
+router.post("/verify-forgot-password-otp", verifyForgotPasswordOtp);
+router.post("/reset-password", resetPassword);
 
 // continue wihh google or facebook
 router.get(

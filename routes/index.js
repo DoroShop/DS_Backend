@@ -23,6 +23,7 @@ const notificationRoutes = require("../modules/notifications/notification.routes
 const walletRoutes = require("../modules/wallet/wallet.routes");
 const subscriptionRoutes = require("../modules/subscription/subscription.route.js");
 const vendorAnalyticsProRoutes = require("../modules/vendors/subcriptors/subscriptor.route.js");
+const bannerController = require("../modules/admin/controllers/productBanner.controller.js");
 
 const Banner = require("../modules/admin/models/banner.model");
 const Category = require("../modules/admin/models/category.model");
@@ -61,5 +62,15 @@ router.use(
   restrictTo("vendor"),
   vendorAnalyticsProRoutes,
 );
+
+// Product banners public endpoint
+router.get("/product-banners", bannerController.getPublicBanners);
+
+
+// Standardized 404 for any unmatched API route under /v1
+router.use((req, res) => {
+  res.status(404).json({ success: false, error: "Route not found" });
+});
+
 
 module.exports = router;
