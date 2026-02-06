@@ -81,6 +81,9 @@ const UserSchema = new mongoose.Schema({
       dtiOrSecPublicId: { type: String },
       fdaCertificateUrl: { type: String },
       fdaCertificatePublicId: { type: String },
+      // NEW: Business Permit document (required)
+      businessPermitUrl: { type: String },
+      businessPermitPublicId: { type: String },
       // Shop profile image (required)
       shopProfileUrl: { type: String },
       shopProfilePublicId: { type: String },

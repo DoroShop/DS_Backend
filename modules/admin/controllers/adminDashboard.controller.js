@@ -287,6 +287,22 @@ exports.reviewSellerApplication = async (req, res) => {
   }
 };
 
+exports.getApplicationHistory = async (req, res) => {
+  try {
+    const { status, search, page, limit } = req.query;
+    const result = await SellerApplicationService.getApplicationHistory({
+      status,
+      search,
+      page: parseInt(page) || 1,
+      limit: parseInt(limit) || 20,
+    });
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error("Get Application History Error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
 // ============================================
 // PRODUCT MANAGEMENT
 // ============================================

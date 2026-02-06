@@ -11,7 +11,8 @@ const uploadSellerDocuments = uploadDocuments.fields([
   { name: 'governmentId', maxCount: 1 },
   { name: 'birTin', maxCount: 1 },
   { name: 'dtiOrSec', maxCount: 1 },
-  { name: 'fdaCertificate', maxCount: 1 }
+  { name: 'fdaCertificate', maxCount: 1 },
+  { name: 'businessPermit', maxCount: 1 }
 ]);
 
 // Error handler for multer errors

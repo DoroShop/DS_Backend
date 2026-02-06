@@ -84,6 +84,11 @@ class SellerApplicationService {
         sellerApplication.fdaCertificatePublicId = files.fdaCertificate[0].filename;
       }
 
+      if (files?.businessPermit && files.businessPermit[0]) {
+        sellerApplication.businessPermitUrl = files.businessPermit[0].path;
+        sellerApplication.businessPermitPublicId = files.businessPermit[0].filename;
+      }
+
       // Add shop location if coordinates provided
       const shopLat = parseFloat(applicationData.shopLatitude);
       const shopLng = parseFloat(applicationData.shopLongitude);
@@ -153,6 +158,9 @@ class SellerApplicationService {
       if (applicationCopy.fdaCertificateUrl) {
         applicationCopy.fdaCertificateUrl = this.fixDocumentUrl(applicationCopy.fdaCertificateUrl);
       }
+      if (applicationCopy.businessPermitUrl) {
+        applicationCopy.businessPermitUrl = this.fixDocumentUrl(applicationCopy.businessPermitUrl);
+      }
 
       return {
         status: applicationCopy.status || 'not_applied',
@@ -217,6 +225,7 @@ class SellerApplicationService {
           userObj.sellerApplication.birTinUrl = this.fixDocumentUrl(userObj.sellerApplication.birTinUrl);
           userObj.sellerApplication.dtiOrSecUrl = this.fixDocumentUrl(userObj.sellerApplication.dtiOrSecUrl);
           userObj.sellerApplication.fdaCertificateUrl = this.fixDocumentUrl(userObj.sellerApplication.fdaCertificateUrl);
+          userObj.sellerApplication.businessPermitUrl = this.fixDocumentUrl(userObj.sellerApplication.businessPermitUrl);
         }
         return userObj;
       });
@@ -224,6 +233,70 @@ class SellerApplicationService {
       return fixedUsers;
     } catch (error) {
       console.error('Error getting pending applications:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Admin: Get application history (approved + rejected)
+   * Supports pagination, search, and status filtering
+   */
+  async getApplicationHistory({ status, search, page = 1, limit = 20 } = {}) {
+    try {
+      const query = {
+        'sellerApplication.submittedAt': { $exists: true },
+        'sellerApplication.status': { $in: ['approved', 'rejected'] }
+      };
+
+      // Filter by specific status if provided
+      if (status === 'approved' || status === 'rejected') {
+        query['sellerApplication.status'] = status;
+      }
+
+      // Search by name, email, or shop name
+      if (search) {
+        const searchRegex = new RegExp(search, 'i');
+        query.$or = [
+          { name: searchRegex },
+          { email: searchRegex },
+          { 'sellerApplication.shopName': searchRegex }
+        ];
+      }
+
+      const skip = (page - 1) * limit;
+
+      const [users, total] = await Promise.all([
+        User.find(query)
+          .select('name email phone sellerApplication createdAt')
+          .populate('sellerApplication.reviewedBy', 'name email')
+          .sort({ 'sellerApplication.reviewedAt': -1 })
+          .skip(skip)
+          .limit(limit),
+        User.countDocuments(query)
+      ]);
+
+      // Fix document URLs for all applications
+      const fixedUsers = users.map(user => {
+        const userObj = user.toObject();
+        if (userObj.sellerApplication) {
+          userObj.sellerApplication.governmentIdUrl = this.fixDocumentUrl(userObj.sellerApplication.governmentIdUrl);
+          userObj.sellerApplication.birTinUrl = this.fixDocumentUrl(userObj.sellerApplication.birTinUrl);
+          userObj.sellerApplication.dtiOrSecUrl = this.fixDocumentUrl(userObj.sellerApplication.dtiOrSecUrl);
+          userObj.sellerApplication.fdaCertificateUrl = this.fixDocumentUrl(userObj.sellerApplication.fdaCertificateUrl);
+          userObj.sellerApplication.businessPermitUrl = this.fixDocumentUrl(userObj.sellerApplication.businessPermitUrl);
+        }
+        return userObj;
+      });
+
+      return {
+        applications: fixedUsers,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      };
+    } catch (error) {
+      console.error('Error getting application history:', error);
       throw error;
     }
   }
@@ -351,6 +424,9 @@ class SellerApplicationService {
       if (application.fdaCertificatePublicId) {
         filesToDelete.push(application.fdaCertificatePublicId);
       }
+      if (application.businessPermitPublicId) {
+        filesToDelete.push(application.businessPermitPublicId);
+      }
 
       // Delete files from Cloudinary
       for (const publicId of filesToDelete) {
@@ -440,6 +516,8 @@ class SellerApplicationService {
         dtiOrSecPublicId: undefined,
         fdaCertificateUrl: undefined,
         fdaCertificatePublicId: undefined,
+        businessPermitUrl: undefined,
+        businessPermitPublicId: undefined,
         rejectionReason: undefined,
         submittedAt: undefined,
         reviewedAt: undefined,
@@ -480,7 +558,8 @@ class SellerApplicationService {
         governmentId: 'governmentIdUrl',
         birTin: 'birTinUrl',
         dtiOrSec: 'dtiOrSecUrl',
-        fdaCertificate: 'fdaCertificateUrl'
+        fdaCertificate: 'fdaCertificateUrl',
+        businessPermit: 'businessPermitUrl'
       };
 
       const urlField = docFieldMap[docType];
@@ -529,6 +608,10 @@ class SellerApplicationService {
 
     if (!files.dtiOrSec || !files.dtiOrSec[0]) {
       errors.push('DTI or SEC registration document is required');
+    }
+
+    if (!files.businessPermit || !files.businessPermit[0]) {
+      errors.push('Business Permit document is required');
     }
 
     // FDA certificate is optional; if provided, allow it

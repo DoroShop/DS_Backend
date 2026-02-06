@@ -30,6 +30,7 @@ router.get('/sellers/:sellerId/performance', adminController.getSellerPerformanc
 
 // SELLER APPLICATION MANAGEMENT
 router.get('/applications/pending', adminController.getPendingApplications);
+router.get('/applications/history', adminController.getApplicationHistory);
 router.put('/applications/:userId/review', adminController.reviewSellerApplication);
 
 // PRODUCT MANAGEMENT

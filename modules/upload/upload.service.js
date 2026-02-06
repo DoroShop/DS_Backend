@@ -23,13 +23,13 @@ function uploadBufferToCloudinary(buffer, options = {}) {
 const uploadDocuments = multer({
   storage: memoryStorage,
   limits: {
-    files: 5,
+    files: 6, // Updated to match seller application fields: shopProfile, governmentId, birTin, dtiOrSec, fdaCertificate, businessPermit
     fileSize: 10 * 1024 * 1024,
   },
   fileFilter: (req, file, cb) => {
     const allowedMimeTypes = [
       "image/jpeg",
-      "image/jpg",
+      "image/jpg", 
       "image/png",
       "image/webp",
       "application/pdf",
