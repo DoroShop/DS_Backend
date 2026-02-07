@@ -7,7 +7,7 @@ const rateLimiter = require('../../../utils/rateLimiter');
 const quoteLimiter   = rateLimiter({ windowSec: 60, maxRequests: 30, keyPrefix: 'rl:shipping:quote' });
 const addressLimiter = rateLimiter({ windowSec: 60, maxRequests: 100, keyPrefix: 'rl:shipping:addr' });
 
-// J&T shipping quote — authenticated (needs cart + user context)
+// Unified J&T shipping quote (bag ≤8kg / rate table 9–50kg) — authenticated
 router.post('/jnt/quote', protect, quoteLimiter, shippingController.quoteShipping);
 
 // Address lookup — public

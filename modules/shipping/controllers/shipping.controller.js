@@ -1,13 +1,14 @@
-const shippingService = require('../services/shipping.service');
+const jntMindoroService = require('../services/jntMindoro.service');
 const { ShippingAddress } = require('../models');
+const ShippingQuote = require('../models/shippingQuote.model');
 const sanitizeMongoInput = require('../../../utils/sanitizeMongoInput');
 const { ValidationError, asyncHandler } = require('../../../utils/errorHandler');
 const { validateId } = require('../../../utils/validation');
 
-// ─── POST /shipping/jnt/quote ────────────────────────────────────────────────
+// ─── POST /shipping/jnt/quote — Unified J&T shipping quote ──────────────────
 exports.quoteShipping = asyncHandler(async (req, res) => {
 	const body = sanitizeMongoInput(req.body);
-	const { destination, items, serviceType, toggles } = body;
+	const { destination, items } = body;
 
 	// --- input validation -------------------------------------------------
 	if (!destination || !destination.provinceCode || !destination.cityCode) {
@@ -26,24 +27,41 @@ exports.quoteShipping = asyncHandler(async (req, res) => {
 		}
 	}
 
-	// --- delegate to service (loads products from DB, never trusts client) ---
-	const quote = await shippingService.calculateShippingQuote({
+	// --- delegate to unified service (bag ≤8kg / rate table 9–50kg) ------
+	const quote = await jntMindoroService.calculateJntMindoroQuote({
 		destination: {
 			provinceCode: String(destination.provinceCode),
-			cityCode:     String(destination.cityCode)
+			cityCode:     String(destination.cityCode),
 		},
 		items: items.map((i) => ({
 			productId: String(i.productId),
-			quantity:  i.quantity
+			quantity:  i.quantity,
 		})),
-		serviceType: String(serviceType || 'EZ').toUpperCase(),
-		toggles: {
-			itemAdditionalFee: !!(toggles && toggles.itemAdditionalFee),
-			itemSize:          !!(toggles && toggles.itemSize)
-		}
 	});
 
-	res.json({ success: true, data: quote });
+	// --- persist quote with TTL for order-creation validation ---
+	let quoteId = null;
+	try {
+		const saved = await ShippingQuote.create({
+			userId:    req.user.id,
+			method:    'JNT_MINDORO',
+			request:   { destination: quote.destination, items },
+			result:    quote,
+			fee:       quote.totals.shippingFeeTotal,
+			expiresAt: new Date(Date.now() + 15 * 60 * 1000), // 15 min TTL
+		});
+		quoteId = saved._id;
+	} catch (saveErr) {
+		console.error('[ShippingQuote] Failed to persist quote:', saveErr.message);
+	}
+
+	res.json({
+		success: true,
+		data: {
+			quoteId,
+			...quote,
+		},
+	});
 });
 
 // ─── GET /shipping/addresses?province=ORIENTAL-MINDORO ───────────────────────
@@ -56,7 +74,7 @@ exports.getAddresses = asyncHandler(async (req, res) => {
 
 	// If DB is empty, return hardcoded Oriental Mindoro list
 	if (addresses.length === 0 && String(province).toUpperCase() === 'ORIENTAL-MINDORO') {
-		const fallback = [...shippingService.ORIENTAL_MINDORO_CITIES].sort().map((c) => ({
+		const fallback = [...jntMindoroService.ORIENTAL_MINDORO_CITIES].sort().map((c) => ({
 			provinceCode: 'ORIENTAL-MINDORO',
 			cityCode: c,
 			displayName: `${c.charAt(0) + c.slice(1).toLowerCase()}, Oriental Mindoro`,
@@ -76,7 +94,7 @@ exports.validateAddress = asyncHandler(async (req, res) => {
 		throw new ValidationError('provinceCode and cityCode are required');
 	}
 
-	const normalised = await shippingService.validateAddress(
+	const normalised = await jntMindoroService.validateOrientalMindoroAddress(
 		String(body.provinceCode),
 		String(body.cityCode)
 	);

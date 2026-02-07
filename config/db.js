@@ -8,7 +8,7 @@ const connectDB = async () => {
       maxPoolSize: 10,        // Maximum number of connections in the connection pool
       minPoolSize: 5,         // Minimum number of connections in the connection pool
       maxIdleTimeMS: 30000,   // Close connections after 30 seconds of inactivity
-      serverSelectionTimeoutMS: 5000, // Keep trying to send operations for 5 seconds
+      serverSelectionTimeoutMS: 15000, // Keep trying to send operations for 15 seconds (increased for remote DigitalOcean)
       socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
       // bufferCommands: false,  // Removed - deprecated option
       // bufferMaxEntries: 0,    // Removed - deprecated option

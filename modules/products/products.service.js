@@ -660,12 +660,22 @@ async function updateProductService(id, data) {
   // Preserve raw HTML description before sanitization
   const rawDescription = data?.description;
 
+  // Preserve raw categories before sanitization (sanitize-html encodes & to &amp;)
+  const rawCategories = Array.isArray(data?.categories)
+    ? data.categories.map(sanitizeText)
+    : undefined;
+
   id = sanitizeMongoInput(id);
   data = sanitizeMongoInput(data);
 
   // Restore the HTML description so the model's pre-save hook can properly sanitize it
   if (rawDescription) {
     data.description = rawDescription;
+  }
+
+  // Restore categories to prevent &amp; encoding from sanitize-html
+  if (rawCategories) {
+    data.categories = rawCategories;
   }
 
   if (!isValidObjectId(id)) {

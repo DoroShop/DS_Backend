@@ -13,7 +13,7 @@ const {
 const sanitizeMongoInput = require('../../utils/sanitizeMongoInput');
 const { ValidationError, asyncHandler } = require('../../utils/errorHandler');
 const { validateId } = require('../../utils/validation');
-const shippingService = require('../shipping/services/shipping.service');
+const jntMindoroService = require('../shipping/services/jntMindoro.service');
 
 exports.addAgreementMessage = asyncHandler(async (req, res) => {
 	const { id: orderId } = req.params;
@@ -52,7 +52,7 @@ exports.createOrder = asyncHandler(async (req, res) => {
 	// ── Server-side shipping recomputation for J&T orders ──────────────────
 	if (payload.shippingOption === 'J&T' && payload.shippingAddress) {
 		try {
-			const quote = await shippingService.calculateShippingQuote({
+			const { shippingFee, shippingBreakdown } = await jntMindoroService.recalculateForOrder({
 				destination: {
 					provinceCode: payload.shippingAddress.province || 'ORIENTAL-MINDORO',
 					cityCode:     payload.shippingAddress.city     || ''
@@ -61,28 +61,29 @@ exports.createOrder = asyncHandler(async (req, res) => {
 					productId: i.productId,
 					quantity:  i.quantity || 1
 				})),
-				serviceType: 'EZ'
 			});
 
 			// Override client-supplied shipping fee with server-computed value
-			payload.shippingFee = quote.summary.totalFinalShippingFeePhp;
+			payload.shippingFee = shippingFee;
 			payload.shippingBreakdown = {
-				courier:     quote.courier,
-				zone:        quote.shipments[0]?.origin?.provinceCode ? 'OM_LOCAL' : undefined,
-				serviceType: quote.serviceType,
-				destination: quote.destination,
-				shipments:   quote.shipments,
-				summary:     quote.summary,
+				...shippingBreakdown,
 				calculatedAt: new Date()
 			};
+
+			// Recalculate subTotal so it reflects the server-side shipping fee
+			const itemsTotal = (payload.items || []).reduce((sum, i) => {
+				return sum + (Number(i.price) || 0) * (Number(i.quantity) || 1);
+			}, 0);
+			payload.subTotal = (itemsTotal + shippingFee).toFixed(2);
 		} catch (shippingErr) {
-			// If the error is a clear business rule violation, block the order
-			const blockCodes = ['MISSING_SHIPPING_PROFILE', 'UNSUPPORTED_WEIGHT', 'INVALID_ADDRESS', 'RATE_NOT_FOUND'];
+			const blockCodes = [
+				'MISSING_SHIPPING_PROFILE', 'MANUAL_QUOTE_REQUIRED',
+				'SHIPPING_NOT_SUPPORTED', 'VALIDATION_ERROR'
+			];
 			if (blockCodes.includes(shippingErr.code)) {
 				throw shippingErr;
 			}
-			// For unexpected errors, log but allow the order with the client-supplied fee
-			console.error('[Order] Shipping calc failed, using client fee:', shippingErr.message);
+			console.error('[Order] J&T shipping calc failed, using client fee:', shippingErr.message);
 		}
 	}
 
