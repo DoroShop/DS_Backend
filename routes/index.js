@@ -24,6 +24,9 @@ const walletRoutes = require("../modules/wallet/wallet.routes");
 const subscriptionRoutes = require("../modules/subscription/subscription.route.js");
 const vendorAnalyticsProRoutes = require("../modules/vendors/subcriptors/subscriptor.route.js");
 const bannerController = require("../modules/admin/controllers/productBanner.controller.js");
+const shippingRoutes = require("../modules/shipping/routes/shipping.routes");
+const adminShippingRoutes = require("../modules/shipping/routes/admin.shipping.routes");
+const shippingDiscountRoutes = require("../modules/products/shippingDiscount.routes");
 
 const Banner = require("../modules/admin/models/banner.model");
 const Category = require("../modules/admin/models/category.model");
@@ -62,6 +65,11 @@ router.use(
   restrictTo("vendor"),
   vendorAnalyticsProRoutes,
 );
+
+// Shipping
+router.use("/shipping", shippingRoutes);
+router.use("/admin/shipping", adminShippingRoutes);
+router.use("/shipping-discounts", shippingDiscountRoutes);
 
 // Product banners public endpoint
 router.get("/product-banners", bannerController.getPublicBanners);

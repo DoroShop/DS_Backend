@@ -3,6 +3,7 @@ const express = require("express");
 const router = express.Router();
 const vendorController = require("./vendors.controller");
 const { protect, restrictTo } = require("../../auth/auth.controller");
+const { requireFeature } = require("../../middleware/requireFeature");
 
 router.post(
 	"/",
@@ -21,6 +22,12 @@ router.put(
 	vendorController.updateVendor
 );
 router.delete("/", protect, restrictTo("admin"), vendorController.deleteVendor);
+
+// Pinned products (subscription benefit)
+router.get("/pinned-products", protect, restrictTo("vendor"), vendorController.getPinnedProducts);
+router.post("/pin-product", protect, restrictTo("vendor"), requireFeature(), vendorController.pinProduct);
+router.delete("/pin-product/:productId", protect, restrictTo("vendor"), requireFeature(), vendorController.unpinProduct);
+
 router.get("/:vendorId/details", vendorController.getVendorDetails);
 
 // Analytics routes

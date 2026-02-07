@@ -211,3 +211,36 @@ exports.getVendorPendingCODCommissions = async (req, res) => {
     });
   }
 };
+
+// ─── Pinned Products ───────────────────────────────────────────────
+exports.pinProduct = async (req, res) => {
+  try {
+    const result = await vendorService.pinProduct(req.user.id, req.body.productId);
+    res.status(200).json(result);
+  } catch (err) {
+    console.error("Pin Product Error:", err);
+    const status = err.message.includes("not found") ? 404 : 400;
+    res.status(status).json({ success: false, error: err.message });
+  }
+};
+
+exports.unpinProduct = async (req, res) => {
+  try {
+    const result = await vendorService.unpinProduct(req.user.id, req.params.productId);
+    res.status(200).json(result);
+  } catch (err) {
+    console.error("Unpin Product Error:", err);
+    const status = err.message.includes("not found") ? 404 : 400;
+    res.status(status).json({ success: false, error: err.message });
+  }
+};
+
+exports.getPinnedProducts = async (req, res) => {
+  try {
+    const products = await vendorService.getPinnedProducts(req.user.id);
+    res.status(200).json({ success: true, data: products });
+  } catch (err) {
+    console.error("Get Pinned Products Error:", err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+};

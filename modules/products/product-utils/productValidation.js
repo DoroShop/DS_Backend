@@ -24,6 +24,27 @@ const optionSchema = Joi.object({
   promotion: promotionSchema
 });
 
+// ─── Shipping profile fields (shared) ────────────────────────────────────────
+const shippingProfileFields = {
+  weightKg: Joi.number().min(0.01).max(50).messages({
+    'number.min': 'Weight must be at least 0.01 kg',
+    'number.max': 'Weight cannot exceed 50 kg'
+  }),
+  lengthCm: Joi.number().integer().min(1).max(300).messages({
+    'number.min': 'Length must be at least 1 cm'
+  }),
+  widthCm: Joi.number().integer().min(1).max(300).messages({
+    'number.min': 'Width must be at least 1 cm'
+  }),
+  heightCm: Joi.number().integer().min(1).max(300).messages({
+    'number.min': 'Height must be at least 1 cm'
+  }),
+  shippingDiscountType: Joi.string().valid('NONE', 'FIXED', 'PERCENT').default('NONE'),
+  shippingDiscountValue: Joi.number().min(0).max(50000).default(0).messages({
+    'number.min': 'Shipping discount value cannot be negative'
+  })
+};
+
 // Product creation schema
 const createProductSchema = Joi.object({
   name: Joi.string().min(1).max(200).required().messages({
@@ -51,7 +72,9 @@ const createProductSchema = Joi.object({
     }),
     otherwise: Joi.array().items(optionSchema).default([])
   }),
-  promotion: promotionSchema
+  promotion: promotionSchema,
+  // Shipping profile (optional on create for backward compat)
+  ...shippingProfileFields
 });
 
 // Product update schema (all fields optional)
@@ -73,7 +96,9 @@ const updateProductSchema = Joi.object({
   isHot: Joi.boolean(),
   municipality: Joi.string().min(1).max(100),
   option: Joi.array().items(optionSchema),
-  promotion: promotionSchema
+  promotion: promotionSchema,
+  // Shipping profile (all optional on update)
+  ...shippingProfileFields
 }).min(1).messages({
   'object.min': 'At least one field must be provided for update'
 });

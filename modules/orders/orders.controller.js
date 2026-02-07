@@ -13,6 +13,7 @@ const {
 const sanitizeMongoInput = require('../../utils/sanitizeMongoInput');
 const { ValidationError, asyncHandler } = require('../../utils/errorHandler');
 const { validateId } = require('../../utils/validation');
+const shippingService = require('../shipping/services/shipping.service');
 
 exports.addAgreementMessage = asyncHandler(async (req, res) => {
 	const { id: orderId } = req.params;
@@ -46,6 +47,43 @@ exports.createOrder = asyncHandler(async (req, res) => {
 
 	if (!payload || !payload.items || !Array.isArray(payload.items) || payload.items.length === 0) {
 		throw new ValidationError('Invalid order data');
+	}
+
+	// ── Server-side shipping recomputation for J&T orders ──────────────────
+	if (payload.shippingOption === 'J&T' && payload.shippingAddress) {
+		try {
+			const quote = await shippingService.calculateShippingQuote({
+				destination: {
+					provinceCode: payload.shippingAddress.province || 'ORIENTAL-MINDORO',
+					cityCode:     payload.shippingAddress.city     || ''
+				},
+				items: payload.items.map((i) => ({
+					productId: i.productId,
+					quantity:  i.quantity || 1
+				})),
+				serviceType: 'EZ'
+			});
+
+			// Override client-supplied shipping fee with server-computed value
+			payload.shippingFee = quote.summary.totalFinalShippingFeePhp;
+			payload.shippingBreakdown = {
+				courier:     quote.courier,
+				zone:        quote.shipments[0]?.origin?.provinceCode ? 'OM_LOCAL' : undefined,
+				serviceType: quote.serviceType,
+				destination: quote.destination,
+				shipments:   quote.shipments,
+				summary:     quote.summary,
+				calculatedAt: new Date()
+			};
+		} catch (shippingErr) {
+			// If the error is a clear business rule violation, block the order
+			const blockCodes = ['MISSING_SHIPPING_PROFILE', 'UNSUPPORTED_WEIGHT', 'INVALID_ADDRESS', 'RATE_NOT_FOUND'];
+			if (blockCodes.includes(shippingErr.code)) {
+				throw shippingErr;
+			}
+			// For unexpected errors, log but allow the order with the client-supplied fee
+			console.error('[Order] Shipping calc failed, using client fee:', shippingErr.message);
+		}
 	}
 
 	const order = await createOrderService({ customerId: id, ...payload });

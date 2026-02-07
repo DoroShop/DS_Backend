@@ -86,6 +86,47 @@ const ProductSchema = new mongoose.Schema({
 	createdAt: { type: Date, default: Date.now },
 	municipality: { type: String, required: true },
 	promotion: { type: PromotionSchema, default: () => ({}) },
+
+	// ─── J&T Shipping Profile ─────────────────────────────────────────────
+	weightKg: {
+		type: Number,
+		min: [0.01, 'Weight must be at least 0.01 kg'],
+		default: null
+	},
+	lengthCm: {
+		type: Number,
+		min: [1, 'Length must be at least 1 cm'],
+		default: null
+	},
+	widthCm: {
+		type: Number,
+		min: [1, 'Width must be at least 1 cm'],
+		default: null
+	},
+	heightCm: {
+		type: Number,
+		min: [1, 'Height must be at least 1 cm'],
+		default: null
+	},
+
+	// ─── Per-Product Shipping Discount ──────────────────────────────────
+	shippingDiscountType: {
+		type: String,
+		enum: ['NONE', 'FIXED', 'PERCENT'],
+		default: 'NONE'
+	},
+	shippingDiscountValue: {
+		type: Number,
+		default: 0,
+		min: [0, 'Shipping discount value cannot be negative'],
+		validate: {
+			validator(v) {
+				if (this.shippingDiscountType === 'PERCENT' && v > 100) return false;
+				return v >= 0;
+			},
+			message: 'PERCENT discount cannot exceed 100'
+		}
+	},
 });
 
 // XSS Protection: Sanitize user-generated content before saving
@@ -218,15 +259,13 @@ ProductSchema.index({ name: 'text', description: 'text', categories: 'text' });
 // Municipality + status compound index for efficient municipality queries
 ProductSchema.index({ municipality: 1, status: 1 });
 
-// Virtual for checking if a product has an active promotion
 ProductSchema.virtual('hasPromotion').get(function() {
-  // A promotion is active if the flag is true and it's not scheduled for the future or already expired.
   if (!this.promotion || !this.promotion.isActive) {
     return false;
   }
   const now = new Date();
   if (this.promotion.startDate && new Date(this.promotion.startDate) > now) {
-    return false; // Scheduled, not active yet
+    return false; 
   }
   if (this.promotion.endDate && new Date(this.promotion.endDate) < now) {
     return false; // Expired

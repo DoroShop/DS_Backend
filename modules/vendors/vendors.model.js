@@ -89,6 +89,14 @@ const VendorSchema = new mongoose.Schema({
 
   gcashNumber: String,
 
+  // Subscription benefit: pinned featured products (max 3)
+  pinnedProducts: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Product",
+    },
+  ],
+
   uniqueViews: { type: Number, default: 0 },
   views: { type: Number, default: 0 },
 

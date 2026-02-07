@@ -776,3 +776,94 @@ exports.getVendorPendingCODCommissions = async (vendorId) => {
     throw error;
   }
 };
+
+// ─── Pinned Products (Subscription Benefit) ───────────────────────
+const MAX_PINNED = 3;
+
+exports.pinProduct = async (userId, productId) => {
+  const Product = require("../products/products.model");
+
+  const vendor = await Vendor.findOne({ userId });
+  if (!vendor) throw new Error("Vendor not found");
+
+  // Verify the product belongs to this vendor
+  const product = await Product.findOne({
+    _id: productId,
+    vendorId: userId,
+    status: "approved",
+    isDisabled: { $ne: true },
+  });
+  if (!product) throw new Error("Product not found or not eligible for pinning");
+
+  // Check max pinned
+  const currentPins = vendor.pinnedProducts || [];
+  if (currentPins.map(String).includes(String(productId))) {
+    throw new Error("Product is already pinned");
+  }
+  if (currentPins.length >= MAX_PINNED) {
+    throw new Error(`Maximum ${MAX_PINNED} pinned products allowed`);
+  }
+
+  vendor.pinnedProducts.push(productId);
+  await vendor.save();
+
+  // Invalidate featured products cache
+  if (isRedisAvailable()) {
+    const { safeDel, safeDelPattern } = require("../../config/redis");
+    await safeDel(getVendorCacheKey(userId));
+    // Clear all featured product caches
+    await safeDelPattern("products:featured:subscribed:*");
+  }
+
+  return {
+    success: true,
+    message: "Product pinned successfully",
+    pinnedProducts: vendor.pinnedProducts,
+  };
+};
+
+exports.unpinProduct = async (userId, productId) => {
+  const vendor = await Vendor.findOne({ userId });
+  if (!vendor) throw new Error("Vendor not found");
+
+  const currentPins = (vendor.pinnedProducts || []).map(String);
+  if (!currentPins.includes(String(productId))) {
+    throw new Error("Product is not pinned");
+  }
+
+  vendor.pinnedProducts = vendor.pinnedProducts.filter(
+    (id) => String(id) !== String(productId),
+  );
+  await vendor.save();
+
+  // Invalidate caches
+  if (isRedisAvailable()) {
+    const { safeDel, safeDelPattern } = require("../../config/redis");
+    await safeDel(getVendorCacheKey(userId));
+    await safeDelPattern("products:featured:subscribed:*");
+  }
+
+  return {
+    success: true,
+    message: "Product unpinned successfully",
+    pinnedProducts: vendor.pinnedProducts,
+  };
+};
+
+exports.getPinnedProducts = async (userId) => {
+  const Product = require("../products/products.model");
+
+  const vendor = await Vendor.findOne({ userId }).lean();
+  if (!vendor) throw new Error("Vendor not found");
+
+  const pinnedIds = vendor.pinnedProducts || [];
+  if (pinnedIds.length === 0) return [];
+
+  const products = await Product.find({
+    _id: { $in: pinnedIds },
+    status: "approved",
+    isDisabled: { $ne: true },
+  }).lean();
+
+  return products;
+};

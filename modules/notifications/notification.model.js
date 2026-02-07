@@ -28,6 +28,7 @@ const notificationSchema = new mongoose.Schema({
       'wallet_debit',
       'seller_application_approved',
       'seller_application_rejected',
+      'shipping_discount',
       'system_announcement',
       'admin_alert'
     ],
@@ -66,7 +67,7 @@ const notificationSchema = new mongoose.Schema({
   // Reference to related entity
   referenceType: {
     type: String,
-    enum: ['commission', 'order', 'payment', 'wallet', 'application', 'system', null],
+    enum: ['commission', 'order', 'payment', 'wallet', 'application', 'shipping_discount', 'system', null],
     default: null
   },
   

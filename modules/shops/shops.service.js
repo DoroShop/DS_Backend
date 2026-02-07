@@ -1,6 +1,25 @@
 const Vendor = require('../vendors/vendors.model');
 const sanitizeMongoInput = require('../../utils/sanitizeMongoInput');
 
+// Helper: get set of subscribed seller IDs
+async function getSubscribedSellerIds() {
+  try {
+    const { Subscription } = require('../subscription/models/Subscription');
+    const now = new Date();
+    const activeSubs = await Subscription.find(
+      {
+        status: { $regex: /^active$/i },
+        $or: [{ currentPeriodEnd: null }, { currentPeriodEnd: { $gt: now } }],
+      },
+      { sellerId: 1 },
+    ).lean();
+    return new Set(activeSubs.map((s) => String(s.sellerId)));
+  } catch (e) {
+    console.error('Error fetching subscribed seller IDs:', e);
+    return new Set();
+  }
+}
+
 class ShopsService {
   /**
    * Get all shops that have location coordinates for map display
@@ -13,8 +32,10 @@ class ShopsService {
         location: { $exists: true },
         'location.coordinates': { $exists: true, $ne: [] }
       })
-      .select('storeName description imageUrl address location rating numRatings followers')
+      .select('storeName description imageUrl address location rating numRatings followers userId')
       .lean();
+
+      const subscribedIds = await getSubscribedSellerIds();
 
       return shops.map(shop => ({
         _id: shop._id,
@@ -25,7 +46,8 @@ class ShopsService {
         location: shop.location,
         rating: shop.rating || 0,
         numRatings: shop.numRatings || 0,
-        followersCount: shop.followers?.length || 0
+        followersCount: shop.followers?.length || 0,
+        isFeatured: subscribedIds.has(String(shop.userId)),
       }));
     } catch (error) {
       console.error('Error fetching shops with location:', error);
@@ -83,6 +105,7 @@ class ShopsService {
             location: 1,
             rating: 1,
             numRatings: 1,
+            userId: 1,
             followers: { $size: { $ifNull: ['$followers', []] } },
             distance: { $round: ['$distance', 0] } // Distance in meters
           }
@@ -91,6 +114,8 @@ class ShopsService {
           $limit: resultLimit
         }
       ]);
+
+      const subscribedIds = await getSubscribedSellerIds();
 
       return shops.map(shop => ({
         _id: shop._id,
@@ -103,7 +128,8 @@ class ShopsService {
         numRatings: shop.numRatings || 0,
         followersCount: shop.followers || 0,
         distance: shop.distance, // in meters
-        distanceText: this.formatDistance(shop.distance)
+        distanceText: this.formatDistance(shop.distance),
+        isFeatured: subscribedIds.has(String(shop.userId)),
       }));
     } catch (error) {
       console.error('Error fetching nearby shops:', error);

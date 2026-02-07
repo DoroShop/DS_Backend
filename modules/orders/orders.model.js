@@ -57,6 +57,48 @@ const OrderSchema = new mongoose.Schema({
   shippingOption: { type: String, default: "J&T" }, // e.g., "J&T", "Pick Up", or "Customer Agreement"
   shippingFee: { type: Number, default: 0 },
 
+  // 📦 J&T Shipping Breakdown (populated when shippingOption === "J&T")
+  shippingBreakdown: {
+    courier: { type: String },
+    zone: String,
+    serviceType: String,
+    destination: {
+      provinceCode: String,
+      cityCode: String
+    },
+    shipments: [{
+      vendorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor' },
+      origin: { provinceCode: String, cityCode: String },
+      bagSpecUsed: String,
+      weights: {
+        actualWeightKg: Number,
+        chargeableWeightKgRounded: Number,
+        roundingStep: Number
+      },
+      fees: {
+        baseShippingFeePhp: Number,
+        totalShippingDiscountPhp: { type: Number, default: 0 },
+        finalShippingFeePhp: Number
+      },
+      discountBreakdown: [{
+        productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
+        productName: String,
+        qty: Number,
+        shippingDiscountType: String,
+        shippingDiscountValue: Number,
+        computedDiscountPhp: Number,
+        _id: false
+      }],
+      _id: false
+    }],
+    summary: {
+      totalBaseShippingFeePhp: Number,
+      totalShippingDiscountPhp: Number,
+      totalFinalShippingFeePhp: Number
+    },
+    calculatedAt: Date
+  },
+
   // 📝 Customer Agreement Section
   agreementDetails: { type: String, default: "" }, // customer's initial message
   agreementMessages: [AgreementMessageSchema], // thread of customer & vendor discussion

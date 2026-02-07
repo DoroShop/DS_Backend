@@ -618,7 +618,7 @@ class ProductManagementService {
 
     const [products, total] = await Promise.all([
       Product.find(query)
-        .populate("vendorId", "shopName")
+        .populate("vendorId", "shopName name email")
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit),
@@ -631,6 +631,10 @@ class ProductManagementService {
       // Ensure status field is set
       if (!prod.status) {
         prod.status = prod.isApproved ? "approved" : "pending_review";
+      }
+      // Map vendorId to seller for frontend compatibility
+      if (prod.vendorId && typeof prod.vendorId === 'object') {
+        prod.seller = prod.vendorId;
       }
       return prod;
     });

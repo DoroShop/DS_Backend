@@ -125,6 +125,7 @@ async function getPaginatedProducts(skip = 0, limit = 20, randomize = true) {
 }
 
 // Get random products from subscribed sellers (max 3 per seller)
+// Pinned products from vendors are prioritized and shown first
 async function getFeaturedSubscribedProducts(municipalities, categories) {
   const munis = (
     Array.isArray(municipalities) ? municipalities : [municipalities]
@@ -169,6 +170,27 @@ async function getFeaturedSubscribedProducts(municipalities, categories) {
 
     if (!vendorMatchIds.length) return [];
 
+    // Get pinned product IDs from subscribed vendors
+    const Vendor = require("../vendors/vendors.model");
+    const vendors = await Vendor.find(
+      { userId: { $in: vendorMatchIds } },
+      { pinnedProducts: 1, userId: 1 },
+    ).lean();
+
+    const pinnedIdSet = new Set();
+    const pinnedObjectIds = [];
+    for (const v of vendors) {
+      for (const pid of v.pinnedProducts || []) {
+        const pidStr = String(pid);
+        if (!pinnedIdSet.has(pidStr)) {
+          pinnedIdSet.add(pidStr);
+          if (mongoose.Types.ObjectId.isValid(pidStr)) {
+            pinnedObjectIds.push(new mongoose.Types.ObjectId(pidStr));
+          }
+        }
+      }
+    }
+
     const match = {
       vendorId: { $in: vendorMatchIds },
       status: PRODUCT_STATUS.APPROVED,
@@ -182,16 +204,18 @@ async function getFeaturedSubscribedProducts(municipalities, categories) {
       match.$or = [{ categories: { $in: cats } }, { category: { $in: cats } }];
     }
 
-    const products = await Product.aggregate([
-      { $match: match },
-      { $set: { __r: { $rand: {} } } },
-      { $sort: { vendorId: 1, __r: 1 } },
-      { $group: { _id: "$vendorId", items: { $push: "$$ROOT" } } },
-      { $project: { items: { $slice: ["$items", 3] } } },
-      { $unwind: "$items" },
-      { $replaceRoot: { newRoot: "$items" } },
-      { $project: { __r: 0 } },
-    ]).allowDiskUse(true);
+    // Get pinned products first (they are guaranteed featured)
+    let pinnedProducts = [];
+    if (pinnedObjectIds.length > 0) {
+      const pinnedMatch = { ...match, _id: { $in: pinnedObjectIds } };
+      pinnedProducts = await Product.find(pinnedMatch).lean();
+      // Mark them as pinned
+      pinnedProducts = pinnedProducts.map((p) => ({ ...p, isPinned: true }));
+    }
+
+    // Featured products section should only display pinned products
+    // This ensures only vendor-selected featured products appear, not random ones
+    const products = pinnedProducts;
 
     if (cache?.isAvailable?.()) {
       await cache.set(cacheKey, products, 300);
